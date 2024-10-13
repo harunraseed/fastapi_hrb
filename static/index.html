@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <button onclick="window.location.href='delete_record.html'">Go to Delete Records</button>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Orders</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        label, input, button {
+            font-size: 16px;
+            margin: 5px 0;
+        }
+
+        input {
+            padding: 8px;
+            width: 200px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        h2 {
+            color: #444;
+            margin-top: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid #ccc;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        td {
+            background-color: #fff;
+        }
+
+        .container {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fetch Customer Orders</h1>
+    
+    <div class="container">
+        <label for="customer_id">Enter Customer ID:</label>
+        <input type="number" id="customer_id" name="customer_id" placeholder="Enter Customer ID">
+        <button onclick="fetchCustomerOrders()">Get Orders</button>
+    </div>
+
+    <h2>Customer Orders</h2>
+    <div id="orders_result"></div>
+
+    <hr>
+
+    <h1>Add New Customer and Order</h1>
+
+    <div class="container">
+        <div class="input-group">
+            <label for="customer_name">Customer Name:</label>
+            <input type="text" id="customer_name" name="customer_name" placeholder="Enter Customer Name">
+        </div>
+        <div class="input-group">
+            <label for="customer_email">Customer Email:</label>
+            <input type="email" id="customer_email" name="customer_email" placeholder="Enter Customer Email">
+        </div>
+        <div class="input-group">
+            <label for="order_id">Order ID:</label>
+            <input type="number" id="order_id" name="order_id" placeholder="Enter Order ID">
+        </div>
+        <div class="input-group">
+            <label for="order_date">Order Date:</label>
+            <input type="date" id="order_date" name="order_date">
+        </div>
+        <div class="input-group">
+            <label for="order_amount">Order Amount:</label>
+            <input type="number" id="order_amount" name="order_amount" placeholder="Enter Order Amount">
+        </div>
+        <button onclick="addCustomerOrder()">Add Customer and Order</button>
+    </div>
+
+    <div id="insert_result"></div>
+
+    <script>
+        async function fetchCustomerOrders() {
+            const customerId = document.getElementById('customer_id').value;
+            const url = `http://127.0.0.1:8000/customer_orders/${customerId}`;
+
+            try {
+                const response = await fetch(url);
+                
+                // Handle HTTP errors
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+
+                const data = await response.json();
+                
+                // Check if there's a message in the response
+                if (data.message) {
+                    // Display the message if no customer or orders are found
+                    document.getElementById('orders_result').innerHTML = `<p>${data.message}</p>`;
+                    return; // Exit the function since there's no data to display
+                }
+
+                // If data is not an array, it's unexpected; log the error
+                if (!Array.isArray(data)) {
+                    console.error("Unexpected data format:", data);
+                    document.getElementById('orders_result').innerHTML = "<p>Unexpected response format.</p>";
+                    return;
+                }
+
+                // Generate the table HTML structure
+                let table = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Customer ID</th>
+                                <th>Customer Name</th>
+                                <th>Customer Email</th>
+                                <th>Order ID</th>
+                                <th>Order Date</th>
+                                <th>Order Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                // Loop through the data and create table rows
+                data.forEach(order => {
+                    table += `
+                        <tr>
+                            <td>${order.CustomerID}</td>
+                            <td>${order.CustomerName}</td>
+                            <td>${order.CustomerEmail}</td>
+                            <td>${order.OrderID}</td>
+                            <td>${order.OrderDate}</td>
+                            <td>${order.OrderAmount}</td>
+                        </tr>
+                    `;
+                });
+
+                table += `</tbody></table>`;
+
+                // Insert the table into the orders_result div
+                document.getElementById('orders_result').innerHTML = table;
+            } catch (error) {
+                document.getElementById('orders_result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        async function addCustomerOrder() {
+            const customerName = document.getElementById('customer_name').value;
+            const customerEmail = document.getElementById('customer_email').value;
+            const orderId = document.getElementById('order_id').value;
+            const orderDate = document.getElementById('order_date').value;
+            const orderAmount = document.getElementById('order_amount').value;
+
+            const url = 'http://127.0.0.1:8000/add_customer_order/';
+            const customerOrderData = {
+                customer_name: customerName,
+                customer_email: customerEmail,
+                order_id: parseInt(orderId),
+                order_date: orderDate,
+                order_amount: parseFloat(orderAmount)
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(customerOrderData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('insert_result').innerHTML = `<p>${result.message}. Customer ID: ${result.customer_id}</p>`;
+                } else {
+                    throw new Error(result.detail);
+                }
+            } catch (error) {
+                document.getElementById('insert_result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

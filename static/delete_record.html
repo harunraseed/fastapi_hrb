@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Records</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        label, input, button {
+            font-size: 16px;
+            margin: 5px 0;
+        }
+
+        input {
+            padding: 8px;
+            width: 200px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 8px 12px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #c82333;
+        }
+
+        .container {
+            margin-bottom: 30px;
+        }
+
+        hr {
+            margin: 20px 0;
+            border: 0;
+            border-top: 1px solid #ccc;
+        }
+
+        .back-button {
+            background-color: #007bff;
+        }
+
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .delete-button {
+            background-color: #dc3545;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Delete Customer or Order</h1>
+
+    <!-- Section for Deleting a Customer -->
+    <div class="container">
+        <h2>View and Delete Orders for Customer</h2>
+        <label for="customer_id">Enter Customer ID:</label>
+        <input type="number" id="customer_id" name="customer_id" placeholder="Enter Customer ID">
+        <button onclick="fetchOrders()">View Orders</button>
+        <div id="customer_orders"></div>
+        <div id="order_delete_result"></div>
+    </div>
+
+    <hr>
+
+    <!-- Back to Home Button -->
+    <button class="back-button" onclick="goBackHome()">Go Back to Home</button>
+
+    <script>
+        // Function to fetch orders for a given customer ID
+        async function fetchOrders() {
+            const customerId = document.getElementById('customer_id').value;
+            const url = `http://127.0.0.1:8000/get_orders/${customerId}`; // Update your API endpoint
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+
+                console.log(result); // Log the result to check its structure
+
+                if (response.ok) {
+                    if (result.orders && Array.isArray(result.orders)) {
+                        displayOrders(result.orders); // Assuming your API returns an 'orders' array
+                    } else {
+                        throw new Error(`Orders not found for this customer ID: ${customerId}`);
+                    }
+                } else {
+                    throw new Error(result.detail);
+                }
+            } catch (error) {
+                document.getElementById('customer_orders').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        // Function to display orders in a table
+        function displayOrders(orders) {
+            let tableHTML = `<table>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Order Details</th>
+                                    <th>Action</th>
+                                </tr>`;
+            orders.forEach(order => {
+                tableHTML += `<tr>
+                                <td>${order.OrderID}</td>
+                                <td>${order.OrderDetails}</td>
+                                <td><button class="delete-button" onclick="deleteOrder(${order.OrderID})">Delete</button></td>
+                              </tr>`;
+            });
+            tableHTML += `</table>`;
+            document.getElementById('customer_orders').innerHTML = tableHTML;
+        }
+
+        // Function to delete an order by order ID
+        async function deleteOrder(orderId) {
+            const url = `http://127.0.0.1:8000/delete_order/${orderId}`; // Update your API endpoint
+
+            try {
+                const response = await fetch(url, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('order_delete_result').innerHTML = `<p>${result.message}</p>`;
+                    fetchOrders(); // Refresh orders after deletion
+                } else {
+                    throw new Error(result.detail);
+                }
+            } catch (error) {
+                document.getElementById('order_delete_result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        // Function to go back to the home page
+        function goBackHome() {
+            window.location.href = 'index.html';  // Adjust this if your home page is located at a different URL
+        }
+    </script>
+</body>
+</html>
