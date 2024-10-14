@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import pyodbc
+import os
 
 app = FastAPI()
 
@@ -14,19 +16,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# SQL Server connection details
-connection_string = (
-    "Driver={SQL Server};"
-    "Server=localhost;"  # Replace with your server name
-    "Database=hrb_db;"  # Replace with your database name
-    "Trusted_Connection=yes;"
+# Mount the static folder to serve HTML files (e.g., index.html)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# SQL Server connection details using environment variables
+connection_string = os.getenv(
+    "SQL_CONNECTION_STRING",
+    (   
+        "Driver={ODBC Driver 17 for SQL Server};"
+        "Server=tcp:hrb-dataapp-server.database.windows.net,1433;"
+        "Database=hrb_dataapp_db;"
+        "Uid=harun;"
+        "Pwd=Har@2024;"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+        "Connection Timeout=30;"
+    )
 )
 
+# Define the customer order model
 class CustomerOrder(BaseModel):
     customer_name: str
     customer_email: str
     order_date: str  # Ensure the format is consistent (e.g., 'YYYY-MM-DD')
     order_amount: float
+
 
 @app.post("/add_customer_order/")
 async def add_customer_order(order: CustomerOrder):
@@ -39,7 +53,6 @@ async def add_customer_order(order: CustomerOrder):
                 SELECT @CustomerID;
             """, order.customer_name, order.customer_email, order.order_date, order.order_amount).fetchval()
 
-            # Check if a valid customer_id was returned
             if customer_id is None:
                 raise HTTPException(status_code=500, detail="Failed to add customer and order")
 
@@ -50,22 +63,21 @@ async def add_customer_order(order: CustomerOrder):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
+
 @app.get("/customer_orders/{customer_id}")
 async def get_customer_orders(customer_id: int):
     try:
         with pyodbc.connect(connection_string) as conn:
             cursor = conn.cursor()
-            
-            # Check if the customer exists
+
             customer_exists = cursor.execute("""
                 SELECT COUNT(*) FROM Customers WHERE CustomerID=?
             """, customer_id).fetchval()
 
             if customer_exists == 0:
                 return {"message": f"No customer available for Customer ID {customer_id}"}
-            
-            # Retrieve orders for the customer
-            orders = cursor.execute(""" 
+
+            orders = cursor.execute("""
                 EXEC GetCustomerOrders @CustomerID=? 
             """, customer_id).fetchall()
 
@@ -110,6 +122,7 @@ async def delete_customer(customer_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
+
 @app.delete("/delete_order/{order_id}")
 async def delete_order(order_id: int):
     try:
@@ -129,20 +142,20 @@ async def delete_order(order_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
+
 @app.get("/get_orders/{customer_id}")
 async def get_orders(customer_id: int):
     try:
         with pyodbc.connect(connection_string) as conn:
             cursor = conn.cursor()
-            
-            # Check if the customer exists first
+
             customer_exists = cursor.execute("""
                 SELECT COUNT(*) FROM Customers WHERE CustomerID=?
             """, customer_id).fetchval()
 
             if customer_exists == 0:
                 return {"message": f"No customer found for ID {customer_id}"}
-            
+
             orders = cursor.execute("""
                 EXEC GetCustomerOrders @CustomerID=?
             """, customer_id).fetchall()
